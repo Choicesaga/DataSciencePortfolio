@@ -1,5 +1,5 @@
 services:
-  # 1. OLLAMA SERVICE (Server & Model Pull)
+  #1 Ollama service
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
@@ -34,7 +34,7 @@ services:
       retries: 10
       start_period: 30s
 
-  # 2. RAG AGENT SERVICE
+  # 2 Rag service
   rag-agent:
     build:
       context: .

@@ -39,6 +39,7 @@ async def main():
         print()
     
 async def create_agent(file_paths):
+    # Function that creates the agent using BeeAi
     vector_store, text_splitter = await setup_knowledge_base()
     loaded_vector_store = await load_documents(vector_store, text_splitter, file_paths)
 
@@ -89,7 +90,6 @@ def get_all_filepaths_in_directory(directory_path: str, extension: str = None) -
         # Ensure we return the absolute path as a string
         return [f"{str(p.resolve())}" for p in dir_path.glob(pattern) if p.is_file()]
     else:
-        # Get all files and directories, then filter only for files
         return [f"{str(p.resolve())}" for p in dir_path.iterdir() if p.is_file()]
     
 def user_input():

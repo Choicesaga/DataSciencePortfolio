@@ -6,7 +6,7 @@ def batch_convert_pdfs_to_markdown(input_dir: str, output_dir: str) -> str:
     input_path = Path(input_dir)
     output_path = Path(output_dir)
 
-    # 1. Validation and Setup
+    # Validation and Setup
     if not input_path.is_dir():
         return f"Error: Input path '{input_dir}' is not a valid directory or does not exist."
 
@@ -26,7 +26,7 @@ def batch_convert_pdfs_to_markdown(input_dir: str, output_dir: str) -> str:
 
     print(f"\n--- Starting Batch Conversion from {input_dir} to {output_dir} ---")
 
-    # 2. Iterate through PDF files in the input directory
+    # Iterate through PDF files in the input directory
     for pdf_file in input_path.glob("*.pdf"):
         try:
             # 3. Perform Conversion
@@ -51,7 +51,7 @@ def batch_convert_pdfs_to_markdown(input_dir: str, output_dir: str) -> str:
             print(f"  [ERROR] {error_message}")
             errors.append(error_message)
 
-    # 6. Summary and Return
+    # Summary and Return
     summary = f"\nBatch conversion complete. Successfully converted {converted_count} PDF file(s) into Markdown."
     if errors:
         summary += f"\n--- Warnings: {len(errors)} file(s) failed to convert. ---"
