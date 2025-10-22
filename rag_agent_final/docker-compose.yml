@@ -1,0 +1,58 @@
+services:
+  # 1. OLLAMA SERVICE (Server & Model Pull)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    entrypoint:
+      - "/bin/bash"
+      - "-c"
+      - |
+        ollama serve &
+        SERVER_PID=$!
+        
+        # Wait for ollama to be ready
+        until ollama list > /dev/null 2>&1; do
+          echo "Waiting for Ollama to start..."
+          sleep 1
+        done
+        
+        echo "Pulling models..."
+        ollama pull granite3.3
+        ollama pull nomic-embed-text
+        echo "Models pulled successfully"
+        
+        # Keep container running
+        wait $SERVER_PID
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  # 2. RAG AGENT SERVICE
+  rag-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag-agent
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_API_BASE=http://ollama:11434
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - ./md_docs:/app/md_docs
+    command: ["python", "main.py"]
+    stdin_open: true
+    tty: true
+    profiles: ["manual"] 
+
+volumes:
+  ollama_models:

@@ -1,0 +1,3 @@
+# requirements.txt
+beeai-framework[wikipedia,rag,a2a,duckduckgo,beeai-platform]
+docling
