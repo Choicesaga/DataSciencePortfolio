@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document defines the requirements for the **Credit Risk Explainer** — a local, containerized ML application that predicts credit risk for loan applicants using the UCI German Credit Dataset and provides transparent, human-readable explanations via SHAP values. The system is composed of three main components: a training pipeline, a FastAPI prediction backend, and a Streamlit frontend, all orchestrated via Docker Compose.
+This document defines the requirements for the **Credit Risk Explainer** — a local, containerized ML application that predicts credit default risk for loan applicants using a credit risk dataset and provides transparent, human-readable explanations via SHAP values. The system is composed of three main components: a training pipeline, a FastAPI prediction backend, and a Streamlit frontend, all orchestrated via Docker Compose.
 
 The primary goals are reproducibility (Docker-based deployment), transparency (SHAP-based explanations), and usability (a clean Streamlit UI that handles all application states gracefully).
 
@@ -29,17 +29,17 @@ The primary goals are reproducibility (Docker-based deployment), transparency (S
 
 ### Requirement 1: Data Preprocessing
 
-**User Story:** As a data scientist, I want the raw UCI German Credit Dataset to be preprocessed within a Scikit-learn Pipeline, so that all transformations are reproducible and encapsulated with the model artifact.
+**User Story:** As a data scientist, I want the raw credit risk dataset to be preprocessed within a Scikit-learn Pipeline, so that all transformations are reproducible and encapsulated with the model artifact.
 
 #### Acceptance Criteria
 
-1. WHEN the Trainer is executed, THE Trainer SHALL load the dataset from `data/german_credit_data.csv`.
-2. THE Pipeline SHALL apply One-Hot Encoding to all categorical features (`Sex`, `Housing`, `Purpose`).
-3. THE Pipeline SHALL apply Ordinal Encoding to ordinal categorical features (`Saving accounts`, `Checking account`) using the domain-ordered categories `["little", "moderate", "quite rich", "rich"]`.
-4. THE Pipeline SHALL apply standard numerical scaling to continuous features (`Age`, `Credit amount`, `Duration`).
+1. WHEN the Trainer is executed, THE Trainer SHALL load the dataset from `data/credit_risk_dataset.csv`.
+2. THE Pipeline SHALL apply One-Hot Encoding to nominal categorical features (`person_home_ownership`, `loan_intent`, `cb_person_default_on_file`).
+3. THE Pipeline SHALL apply Ordinal Encoding to the ordinal feature `loan_grade` using the domain-ordered categories `["A", "B", "C", "D", "E", "F", "G"]` (A=0, best; G=6, worst).
+4. THE Pipeline SHALL apply standard numerical scaling to continuous features (`person_age`, `person_income`, `person_emp_length`, `loan_amnt`, `loan_int_rate`, `loan_percent_income`, `cb_person_cred_hist_length`).
 5. WHEN missing values are present in categorical columns, THE Pipeline SHALL impute them with the most frequent value before encoding.
-6. WHEN missing values are present in numerical columns, THE Pipeline SHALL impute them with the median value before scaling.
-7. THE Pipeline SHALL preserve the `Job` feature as an integer without transformation.
+6. WHEN missing values are present in numerical columns (`person_emp_length`, `loan_int_rate`), THE Pipeline SHALL impute them with the median value before scaling.
+7. THE Pipeline SHALL include all 11 input features: `person_age`, `person_income`, `person_home_ownership`, `person_emp_length`, `loan_intent`, `loan_grade`, `loan_amnt`, `loan_int_rate`, `loan_percent_income`, `cb_person_default_on_file`, `cb_person_cred_hist_length`.
 
 ---
 
@@ -65,17 +65,19 @@ The primary goals are reproducibility (Docker-based deployment), transparency (S
 
 1. WHEN the API starts, THE API SHALL load the Pipeline from the `.joblib` file into memory exactly once.
 2. IF the `.joblib` file is not found at startup, THEN THE API SHALL log a descriptive error and exit with a non-zero status code.
-3. THE API SHALL expose a `POST /predict` endpoint that accepts a JSON body conforming to the `ApplicantFeatures` Pydantic schema.
-4. THE `ApplicantFeatures` schema SHALL enforce the following fields and types:
-   - `age`: integer, range 18–100
-   - `sex`: string, one of `["male", "female"]`
-   - `job`: integer, range 0–3
-   - `housing`: string, one of `["own", "free", "rent"]`
-   - `saving_accounts`: string, one of `["little", "moderate", "quite rich", "rich"]`, nullable
-   - `checking_account`: string, one of `["little", "moderate", "rich"]`, nullable
-   - `credit_amount`: integer, minimum 1
-   - `duration`: integer, minimum 1
-   - `purpose`: string, one of `["car", "furniture/equipment", "radio/TV", "domestic appliances", "repairs", "education", "business", "vacation/others"]`
+3. THE API SHALL expose a `POST /predict` endpoint that accepts a JSON body conforming to the `LoanFeatures` Pydantic schema.
+4. THE `LoanFeatures` schema SHALL enforce the following fields and types:
+   - `person_age`: integer, range 18–100
+   - `person_income`: integer, minimum 1
+   - `person_home_ownership`: string, one of `["RENT", "OWN", "MORTGAGE", "OTHER"]`
+   - `person_emp_length`: float, minimum 0.0, nullable
+   - `loan_intent`: string, one of `["PERSONAL", "EDUCATION", "MEDICAL", "VENTURE", "HOMEIMPROVEMENT", "DEBTCONSOLIDATION"]`
+   - `loan_grade`: string, one of `["A", "B", "C", "D", "E", "F", "G"]`
+   - `loan_amnt`: integer, minimum 1
+   - `loan_int_rate`: float, minimum 0.0, nullable
+   - `loan_percent_income`: float, range 0.0–1.0
+   - `cb_person_default_on_file`: string, one of `["Y", "N"]`
+   - `cb_person_cred_hist_length`: integer, minimum 0
 5. WHEN a valid `POST /predict` request is received, THE API SHALL return a JSON response containing `risk_score` (float) and `prediction` (string).
 6. WHEN the `risk_score` is greater than or equal to 0.5, THE API SHALL set `prediction` to `"High Risk"`.
 7. WHEN the `risk_score` is less than 0.5, THE API SHALL set `prediction` to `"Low Risk"`.
@@ -86,7 +88,7 @@ The primary goals are reproducibility (Docker-based deployment), transparency (S
 
 ### Requirement 4: SHAP Explanation Generation
 
-**User Story:** As a credit analyst, I want a SHAP-based explanation for each prediction, so that I can understand which applicant features drove the risk assessment.
+**User Story:** As a credit analyst, I want a SHAP-based explanation for each prediction, so that I can understand which loan features drove the risk assessment.
 
 #### Acceptance Criteria
 
@@ -100,11 +102,11 @@ The primary goals are reproducibility (Docker-based deployment), transparency (S
 
 ### Requirement 5: Streamlit User Interface
 
-**User Story:** As a loan officer, I want a web-based form to enter applicant details and view the prediction and explanation, so that I can make informed credit decisions without writing code.
+**User Story:** As a loan officer, I want a web-based form to enter loan application details and view the prediction and explanation, so that I can make informed credit decisions without writing code.
 
 #### Acceptance Criteria
 
-1. THE UI SHALL render a sidebar or form containing labeled input controls for all nine applicant features: `Age`, `Sex`, `Job`, `Housing`, `Saving accounts`, `Checking account`, `Credit amount`, `Duration`, and `Purpose`.
+1. THE UI SHALL render a sidebar or form containing labeled input controls for all 11 loan features: `person_age`, `person_income`, `person_home_ownership`, `person_emp_length`, `loan_intent`, `loan_grade`, `loan_amnt`, `loan_int_rate`, `loan_percent_income`, `cb_person_default_on_file`, `cb_person_cred_hist_length`.
 2. WHILE the UI is in Zero_State (no prediction has been submitted), THE UI SHALL display a placeholder message and SHALL NOT render a SHAP_Plot or prediction result.
 3. WHEN the user submits the form, THE UI SHALL send a `POST` request to the API's `/predict` endpoint using the `requests` library.
 4. WHEN the API returns a successful response, THE UI SHALL display the `prediction` label prominently and the `risk_score` as a formatted percentage.
